@@ -1,0 +1,20 @@
+{
+  "name": "SelectiveCrypt DevContainer",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "runArgs": ["--init"],
+  "postCreateCommand": "pip3 install pycryptodomex && cd encryption_schemes/scheme2 && pip3 install . && make clean && make",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cmake-tools"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  }
+}
