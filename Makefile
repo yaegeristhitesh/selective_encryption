@@ -68,11 +68,6 @@ $(OBJ_DIR)/scheme_1.o: encryption_schemes/scheme1/scheme_1.cpp encryption_scheme
 	@mkdir -p $(OBJ_DIR)
 	$(CXX) $(CXXFLAGS) encryption_schemes/scheme1/scheme_1.cpp -o $(OBJ_DIR)/scheme_1.o
 
-# New rule for scheme2
-$(OBJ_DIR)/scheme_2.o: encryption_schemes/scheme2/scheme_2.cpp encryption_schemes/scheme2/scheme_2.h
-	@mkdir -p $(OBJ_DIR)
-	$(CXX) $(CXXFLAGS) encryption_schemes/scheme2/scheme_2.cpp -o $(OBJ_DIR)/scheme_2.o
-
 # Build shared libraries for codec modules
 $(LIB_DIR)/libutil.so: $(OBJ_DIR)/util.o
 	@mkdir -p $(LIB_DIR)
@@ -87,9 +82,9 @@ $(LIB_DIR)/libdecompress.so: $(OBJ_DIR)/decompress.o
 	$(CXX) -shared -o $(LIB_DIR)/libdecompress.so $(OBJ_DIR)/decompress.o -L$(LIB_DIR) -lutil -L/opt/homebrew/Cellar/ffmpeg/7.1.1/lib -lavformat -lavcodec -lswscale -lavutil
 
 # Updated shared library for encryption schemes (link with OpenCV, OpenSSL, and FFmpeg)
-$(LIB_DIR)/libencryption.so: $(OBJ_DIR)/common.o $(OBJ_DIR)/scheme_1.o $(OBJ_DIR)/scheme_2.o
+$(LIB_DIR)/libencryption.so: $(OBJ_DIR)/common.o $(OBJ_DIR)/scheme_1.o 
 	@mkdir -p $(LIB_DIR)
-	$(CXX) -shared -o $(LIB_DIR)/libencryption.so $(OBJ_DIR)/common.o $(OBJ_DIR)/scheme_1.o $(OBJ_DIR)/scheme_2.o $(OPENCV_LIBS) $(OPENSSL_LIBS) $(LDFLAGS)
+	$(CXX) -shared -o $(LIB_DIR)/libencryption.so $(OBJ_DIR)/common.o $(OBJ_DIR)/scheme_1.o $(OPENCV_LIBS) $(OPENSSL_LIBS) $(LDFLAGS)
 
 # Link the main executable with the shared libraries (and OpenCV)
 $(TARGET): $(OBJ_DIR)/main.o $(LIB_DIR)/libutil.so $(LIB_DIR)/libcompress.so $(LIB_DIR)/libdecompress.so $(LIB_DIR)/libencryption.so

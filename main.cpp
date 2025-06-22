@@ -18,7 +18,7 @@ int main(int argc, char* argv[]) {
 
     const char* encodeOutput = "./video/output/temp_encoded.mp4";
 
-    Encryption::Scheme current = Encryption::Scheme::Scheme2;
+    Encryption::Scheme current = Encryption::Scheme::Scheme1;
 
     if (encode_video(encodeInput, encodeOutput) < 0) {
         std::cerr << "Encoding failed" << std::endl;

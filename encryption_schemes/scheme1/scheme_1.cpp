@@ -107,120 +107,114 @@ cv::Mat decrypt_image(const cv::Mat &image, const std::string &key) {
     return decrypted;
 }
 
-// Encrypt I-frames from the video, overlay them back, and produce an encrypted video.
+#include <iostream>
+#include <string>
+#include <filesystem>
+#include <opencv2/opencv.hpp>
+
+namespace fs = std::filesystem;
+
+// Assume encrypt_image and decrypt_image are defined elsewhere
+cv::Mat encrypt_image(const cv::Mat& frame, const std::string& key);
+cv::Mat decrypt_image(const cv::Mat& frame, const std::string& key);
+
+// Encrypt ALL frames from the video and rebuild a new, fully encrypted video.
 int encrypt(const std::string &videoPath, const std::string &outputPath, const std::string &key) {
     // Create temporary directories.
-    fs::create_directory("temp_frames");
-    fs::create_directory("temp_i_frames");
+    fs::create_directory("temp_all_frames");
     fs::create_directory("temp_encrypted_frames");
 
-    // Extract all frames (optional).
+    // --- Step 1: Extract ALL frames from the video ---
+    // Note: It's good practice to get the original video's framerate for reassembly.
+    // For simplicity here, we'll assume 25, but a robust solution would use ffprobe to get the actual rate.
+    // A placeholder framerate of 25 is used in the final command.
     {
-        std::string cmd = "ffmpeg -y -i " + videoPath + " temp_frames/frame_%04d.png";
+        std::string cmd = "ffmpeg -y -i " + videoPath + " temp_all_frames/frame_%04d.png";
+        std::cout << "Executing: " << cmd << std::endl;
         if (system(cmd.c_str()) != 0) {
             std::cerr << "Error extracting all frames." << std::endl;
             return -1;
         }
     }
-    // Extract I-frames only.
-    {
-        std::string cmd = "ffmpeg -y -i " + videoPath + " -vf \"select='eq(pict_type,I)'\" -vsync vfr temp_i_frames/iframe_%04d.png";
-        if (system(cmd.c_str()) != 0) {
-            std::cerr << "Error extracting I-frames." << std::endl;
-            return -1;
-        }
-    }
-    // Read the first I-frame to get the width.
-    std::string firstFramePath = "temp_i_frames/iframe_0001.png";
-    if (!fs::exists(firstFramePath)) {
-        std::cerr << "No I-frames found!" << std::endl;
-        return -1;
-    }
-    cv::Mat firstFrame = cv::imread(firstFramePath, cv::IMREAD_COLOR);
-    if (firstFrame.empty()) {
-        std::cerr << "Error reading first I-frame." << std::endl;
-        return -1;
-    }
-    // (The swap key is generated inside encrypt_image.)
-    // Encrypt each I-frame.
-    for (const auto &entry : fs::directory_iterator("temp_i_frames")) {
+
+    // --- Step 2: Encrypt each frame ---
+    for (const auto &entry : fs::directory_iterator("temp_all_frames")) {
         if (entry.path().extension() == ".png") {
             cv::Mat frame = cv::imread(entry.path().string(), cv::IMREAD_COLOR);
             if (frame.empty()) continue;
+
             cv::Mat encFrame = encrypt_image(frame, key);
             std::string outPath = "temp_encrypted_frames/" + entry.path().filename().string();
             cv::imwrite(outPath, encFrame);
         }
     }
-    // Overlay encrypted I-frames back onto the original video.
+
+    // --- Step 3: Rebuild the video from encrypted frames, copying the original audio ---
     {
-        // The key change: add -framerate before the image sequence input and use overlay=eof_action=pass.
-        std::string cmd = "ffmpeg -y -i " + videoPath +
-                          " -framerate 25 -i temp_encrypted_frames/iframe_%04d.png -filter_complex \"[0:v][1:v] overlay=eof_action=pass\" "
+        // This command creates a new video from the encrypted image sequence
+        // and copies the audio stream from the original video.
+        std::string cmd = "ffmpeg -y -framerate 25 -i temp_encrypted_frames/frame_%04d.png "
+                          "-i " + videoPath + " -map 0:v:0 -map 1:a:0? -c:a copy "
                           "-c:v libx264 -pix_fmt yuv420p " + outputPath;
+        std::cout << "Executing: " << cmd << std::endl;
         if (system(cmd.c_str()) != 0) {
-            std::cerr << "Error overlaying encrypted I-frames." << std::endl;
+            std::cerr << "Error rebuilding video from encrypted frames." << std::endl;
             return -1;
         }
     }
-    // Cleanup temporary directories.
-    fs::remove_all("temp_frames");
-    fs::remove_all("temp_i_frames");
+
+    // --- Step 4: Cleanup temporary directories ---
+    fs::remove_all("temp_all_frames");
     fs::remove_all("temp_encrypted_frames");
 
     std::cout << "Encrypted video saved to " << outputPath << std::endl;
     return 0;
 }
 
-// Decrypt I-frames from the encrypted video, overlay them back, and produce a decrypted video.
+// Decrypt ALL frames from the video and rebuild a new, decrypted video.
 int decrypt(const std::string &videoPath, const std::string &outputPath, const std::string &key) {
     fs::create_directory("temp_enc_frames");
     fs::create_directory("temp_dec_frames");
 
-    // Extract I-frames from the encrypted video.
+    // --- Step 1: Extract all frames from the encrypted video ---
     {
-        std::string cmd = "ffmpeg -y -i " + videoPath + " -vf \"select='eq(pict_type,I)'\" -vsync vfr temp_enc_frames/iframe_%04d.png";
+        std::string cmd = "ffmpeg -y -i " + videoPath + " temp_enc_frames/frame_%04d.png";
+        std::cout << "Executing: " << cmd << std::endl;
         if (system(cmd.c_str()) != 0) {
-            std::cerr << "Error extracting encrypted I-frames." << std::endl;
+            std::cerr << "Error extracting encrypted frames." << std::endl;
             return -1;
         }
     }
-    // Read the first encrypted I-frame to get the width.
-    std::string firstEncFrame = "temp_enc_frames/iframe_0001.png";
-    if (!fs::exists(firstEncFrame)) {
-        std::cerr << "No encrypted I-frames found!" << std::endl;
-        return -1;
-    }
-    cv::Mat firstFrame = cv::imread(firstEncFrame, cv::IMREAD_COLOR);
-    if (firstFrame.empty()) {
-        std::cerr << "Error reading first encrypted I-frame." << std::endl;
-        return -1;
-    }
-    // Decrypt each I-frame.
+
+    // --- Step 2: Decrypt each frame ---
     for (const auto &entry : fs::directory_iterator("temp_enc_frames")) {
         if (entry.path().extension() == ".png") {
             cv::Mat encFrame = cv::imread(entry.path().string(), cv::IMREAD_COLOR);
             if (encFrame.empty()) continue;
+
             cv::Mat decFrame = decrypt_image(encFrame, key);
             std::string outPath = "temp_dec_frames/" + entry.path().filename().string();
             cv::imwrite(outPath, decFrame);
         }
     }
 
-    // Overlay decrypted I-frames back onto the video.
+    // --- Step 3: Rebuild the video from decrypted frames, copying the audio ---
     {
-        std::string cmd = "ffmpeg -y -i " + videoPath +
-                          " -framerate 25 -i temp_dec_frames/iframe_%04d.png -filter_complex \"[0:v][1:v] overlay=eof_action=pass\" "
+        // We copy the audio from the encrypted video file.
+        std::string cmd = "ffmpeg -y -framerate 25 -i temp_dec_frames/frame_%04d.png "
+                          "-i " + videoPath + " -map 0:v:0 -map 1:a:0? -c:a copy "
                           "-c:v libx264 -pix_fmt yuv420p " + outputPath;
+        std::cout << "Executing: " << cmd << std::endl;
         if (system(cmd.c_str()) != 0) {
-            std::cerr << "Error overlaying decrypted I-frames." << std::endl;
+            std::cerr << "Error rebuilding video from decrypted frames." << std::endl;
             return -1;
         }
     }
+
+    // --- Step 4: Cleanup ---
     fs::remove_all("temp_enc_frames");
     fs::remove_all("temp_dec_frames");
     std::cout << "Decrypted video saved to " << outputPath << std::endl;
     return 0;
 }
-
-} // namespace Scheme1
+}

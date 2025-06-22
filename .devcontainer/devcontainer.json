@@ -1,11 +1,12 @@
 {
   "name": "SelectiveCrypt DevContainer",
   "build": {
-    "dockerfile": "Dockerfile",
+    "dockerfile": "../Dockerfile",
     "context": ".."
   },
   "runArgs": ["--init"],
-  "postCreateCommand": "pip3 install pycryptodomex && cd encryption_schemes/scheme2 && pip3 install . && make clean && make",
+  "postCreateCommand": "pip3 install pycryptodome",
+  "postStartCommand": "make clean && make",
   "customizations": {
     "vscode": {
       "extensions": [

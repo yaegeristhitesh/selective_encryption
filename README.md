@@ -1,45 +1,135 @@
-# IITJAMMU_24VI59IITJ_Selective_encryption_for_H_264_AVC_Video_streams
-SRIB-PRISM Program
+# 🛡️ SelectiveCrypt: Selective Encryption Tool for H.264 Video Streams
 
-Project Setup and Usage
+> **Project Code**: IITJAMMU\_24VI59IITJ
+> **SRIB-PRISM Sponsored Research**
 
-This README provides instructions on how to set up and use this project within a Docker container.
-1. Start Docker
+SelectiveCrypt provides a modular framework for **selectively encrypting H.264 video slices and AAC audio streams**, with support for both:
 
-First, ensure Docker is installed and running on your system. You can verify the installation by checking its version:
-Bash
+* A **C++-based encryption tool (Scheme1)** with Docker/VS Code container support
+* A **Python-based selective slice/audio encryption tool (Scheme2)** with full Docker support
 
-docker --version
+---
 
-If Docker isn't running, please start Docker Desktop (for Windows/macOS) or your operating system's Docker runtime.
-2. Open the Project in VS Code (Inside the Container)
+## 📆 Features
 
-To work with the project in a containerized environment:
+### ✅ Scheme 1 (C++ Based)
 
-    Open VS Code and load your project folder.
-    Press F1 (or Ctrl+Shift+P) to open the command palette.
-    Select the command: Remote-Containers: Reopen in Container
+* 🔐 Encrypts frames using XOR + column permutation
+* 🎥 Uses **OpenCV** and **FFmpeg**
+* 🐳 Fully supports **Docker + VS Code Dev Containers**
+* 💧 Built with `make` (cross-platform)
 
-VS Code will then automatically build (if necessary) and launch the project inside a Docker container, providing a consistent development environment.
-3. (Important) Using Your Own Video Files
+### ✅ Scheme 2 (Python Based)
 
-If you plan to use your own video files for testing, you must copy or move them into the project folder before opening the project in the container. Files located outside the project directory are not accessible from within the Docker container by default.
+* 🌟 **Selective slice encryption** based on QP threshold
+* 🔊 **AAC audio encryption** using AES-CTR
+* 📁 **.bin packaging** with metadata & base64-derived seed files
+* 🔑 **Deterministic key/nonce** generation
+* ↺ Fully reversible with CLI-based decryption
+* 🛃 Full Docker compatibility (no Python or FFmpeg installs required locally)
 
-For example, you can place your video file in the video/ directory:
+---
 
-video/myvideo.mp4
+## 💪 Quickstart (Docker + VS Code)
 
-4. Run the Main Script
+### ✅ 1. Prerequisites
 
-Once your project is open in the VS Code terminal (inside the container), you can run the main script using the following command:
-Bash
+* [Docker](https://www.docker.com/) installed and running
+* [VS Code](https://code.visualstudio.com/) with:
 
-./run video/test2.mp4 video/output/encrypted.mp4 video/output/decrypted.mp4
+  * `Remote - Containers` extension
 
-Here's a breakdown of the arguments:
+---
 
-    video/test2.mp4: This is the input video file.
-    video/output/encrypted.mp4: This will be the output encrypted video file.
-    video/output/decrypted.mp4: This will be the output decrypted video file.
+### 🔧 2. Open the Project in a VS Code Container
 
-Remember: You can replace test2.mp4 with the name of any video file you have placed inside the video/ directory.
+1. Open your project folder in VS Code
+2. Press `F1` → choose:
+
+   ```
+   Remote-Containers: Reopen in Container
+   ```
+3. VS Code will build the container and open your development environment
+
+---
+
+### 📂 3. Add Video Files
+
+Place any test video inside the `video/` directory:
+
+```
+video/myclip.mp4
+```
+
+---
+
+### ▶️ 4. Run Scheme1 (C++)
+
+```bash
+./run video/test2.mp4 video/scheme1_results/encrypted.mp4 video/scheme1_results/decrypted.mp4
+```
+
+It will prompt:
+
+```
+Enter encryption key (max 16 characters):
+```
+Might take some time to run (5 mins)
+---
+
+### ⚒️ 5. Run Scheme2 (Python) Inside Container
+
+#### Encrypt
+
+```bash
+python3 encryption_schemes/scheme2/encrypt.py -i video/test1.mp4 -t 28 -o video/scheme2_results
+```
+
+#### Decrypt `.bin` Package
+
+```bash
+python3 encryption_schemes/scheme2/decrypt.py -p video/scheme2_results/test1.bin -s video/scheme2_results/test1_seeds.json
+```
+
+#### View encrypted video
+
+```bash
+ python3 encryption_schemes/scheme2/decrypt.py -p video/scheme2_results/test1.bin -s video/scheme2_results/test1_seeds.json -o output/ -k
+```
+
+---
+
+## 🔧 Manual Python (Non-Docker)
+
+### 📝 Requirements
+
+```bash
+pip install -r requirements.txt
+```
+
+* Python 3.8+
+* FFmpeg + FFprobe in PATH
+* `pycryptodome`
+
+---
+
+## 📁 Recommended Folder Structure
+
+```
+project-root/
+├── codec/
+├── encryption_schemes/
+│   ├── scheme1/
+│   └── scheme2/
+├── video/
+│   ├── test1.mp4
+│   └── scheme1_results/
+│   └── scheme2_results/
+├── build/
+├── run
+├── Makefile
+├── Dockerfile / devcontainer.json
+└── README.md
+```
+
+---
